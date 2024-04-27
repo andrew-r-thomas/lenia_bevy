@@ -169,7 +169,7 @@ impl FromWorld for GameOfLifePipeline {
                 ),
             ),
         );
-        let shader = world.load_asset("/Users/andrewthomas/dev/diy/bevy_scratch/src/shader.wgsl");
+        let shader = world.load_asset("/Users/andrewthomas/dev/diy/lenia_bevy/src/shader.wgsl");
         let pipeline_cache = world.resource::<PipelineCache>();
         let init_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
             label: None,

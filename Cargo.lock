@@ -859,13 +859,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_scratch"
-version = "0.1.0"
-dependencies = [
- "bevy",
-]
-
-[[package]]
 name = "bevy_sprite"
 version = "0.14.0-dev"
 source = "git+https://github.com/bevyengine/bevy.git#ade70b3925b27f76b669ac5fd9e2c31f824d7667"
@@ -2183,6 +2176,13 @@ name = "lazycell"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
+
+[[package]]
+name = "lenia_bevy"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
 
 [[package]]
 name = "lewton"

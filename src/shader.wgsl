@@ -24,7 +24,7 @@ fn randomFloat(value: u32) -> f32 {
 }
 
 const R: f32 = 15.0;      
-const T: f32 = 1000.0;
+const T: f32 = 10.0;
 const dt: f32 = 1.0/T;
 const mu: f32 = 0.14;
 const sigma: f32 = 0.014;
@@ -38,12 +38,18 @@ fn bell(x: f32, m: f32, s: f32) -> f32 {
 @compute @workgroup_size(8, 8, 1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
-
+    if (location.x > 500 && location.x < 1000 && location.y > 200 && location.y < 400) {
+        
     let randomNumber = randomFloat(invocation_id.y << 16u | invocation_id.x);
-    let alive = randomNumber > 0.9;
-    let color = vec4<f32>(f32(alive));
+    // let alive = randomNumber > 0.9;
+    let color = vec4<f32>(f32(randomNumber));
+    // let color = vec4<f32>(f32(alive));
 
     textureStore(output, location, color);
+    } else {
+        textureStore(output, location, vec4<f32>(0.0));
+    }
+
 }
 
 fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
@@ -72,7 +78,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
         for (var y: i32 = -i32(R); y<=i32(R); y++)
         {
             let r: f32 = sqrt(f32(x*x + y*y)) / R;
-            let txy: vec2<i32> = (location + vec2<i32>(x, y)) % 1; // had iResolution.xy, idk if we need it
+            let txy: vec2<i32> = (location + vec2<i32>(x, y)); // had iResolution.xy, idk if we need it
             let val: f32 = textureLoad(input, txy).r;
             let weight: f32 = bell(r, rho, omega);
             sum += val * weight;
@@ -98,6 +104,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     //     alive = false;
     // }
     let color = vec4<f32>(c, c, c, 1.0);
+    // let color = vec4<f32>(f32(alive));
 
     textureStore(output, location, color);
 }
