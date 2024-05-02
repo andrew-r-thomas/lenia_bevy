@@ -8,6 +8,9 @@
 
 @group(0) @binding(1) var output: texture_storage_2d<r32float, write>;
 
+@group(0) @binding(2) var lir: texture_storage_1d<r32float, write>;
+@group(1) @binding(3) var rir: texture_storage_1d<r32float, write>;
+
 fn hash(value: u32) -> u32 {
     var state = value;
     state = state ^ 2747636419u;
@@ -36,75 +39,55 @@ fn bell(x: f32, m: f32, s: f32) -> f32 {
 }
 
 @compute @workgroup_size(8, 8, 1)
-fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
+fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
-    if (location.x > 500 && location.x < 1000 && location.y > 200 && location.y < 400) {
-        
     let randomNumber = randomFloat(invocation_id.y << 16u | invocation_id.x);
-    // let alive = randomNumber > 0.9;
     let color = vec4<f32>(f32(randomNumber));
-    // let color = vec4<f32>(f32(alive));
 
     textureStore(output, location, color);
-    } else {
-        textureStore(output, location, vec4<f32>(0.0));
-    }
-
-}
-
-fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
-    let value: vec4<f32> = textureLoad(input, location + vec2<i32>(offset_x, offset_y));
-    return i32(value.x);
-}
-
-fn count_alive(location: vec2<i32>) -> i32 {
-    return is_alive(location, -1, -1) +
-           is_alive(location, -1,  0) +
-           is_alive(location, -1,  1) +
-           is_alive(location,  0, -1) +
-           is_alive(location,  0,  1) +
-           is_alive(location,  1, -1) +
-           is_alive(location,  1,  0) +
-           is_alive(location,  1,  1);
 }
 
 @compute @workgroup_size(8, 8, 1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
 
-    var sum: f32 = 0.0;
-    var total: f32 = 0.0;
-    for (var x: i32 = -i32(R); x<=i32(R); x++) {
-        for (var y: i32 = -i32(R); y<=i32(R); y++)
-        {
-            let r: f32 = sqrt(f32(x*x + y*y)) / R;
-            let txy: vec2<i32> = (location + vec2<i32>(x, y)); // had iResolution.xy, idk if we need it
-            let val: f32 = textureLoad(input, txy).r;
-            let weight: f32 = bell(r, rho, omega);
-            sum += val * weight;
-            total += weight;
+    if location.x < 500 && location.y < 500 {
+        var sum: f32 = 0.0;
+        var total: f32 = 0.0;
+        for (var x: i32 = -i32(R); x<=i32(R); x++) {
+            for (var y: i32 = -i32(R); y<=i32(R); y++)
+            {
+                let r: f32 = sqrt(f32(x*x + y*y)) / R;
+                let txy: vec2<i32> = (location + vec2<i32>(x, y));
+                let val: f32 = textureLoad(input, txy).r;
+                let weight: f32 = bell(r, rho, omega);
+                sum += val * weight;
+                total += weight;
+            }
+            
         }
-        
+
+        let avg: f32 = sum / total;
+        let g: f32 = bell(avg, mu, sigma) * 2.0 - 1.0;
+        let val: f32 = textureLoad(input, location).r;
+        let c: f32 = clamp(val + dt * g, 0.0, 1.0);
+
+        let color = vec4<f32>(c, c, c, 1.0);
+
+        textureStore(output, location, color);
+    } else {
+     textureStore(output, location, vec4<f32>(0.0));
     }
 
-    let avg: f32 = sum / total;
-    let g: f32 = bell(avg, mu, sigma) * 2.0 - 1.0;
-    let val: f32 = textureLoad(input, location).r;
-    let c: f32 = clamp(val + dt * g, 0.0, 1.0);
-
-    // let n_alive = count_alive(location);
-
-    // var alive: bool;
-    // if (n_alive == 3) {
-    //     alive = true;
-    // } else if (n_alive == 2) {
-    //     let currently_alive = is_alive(location, 0, 0);
-    //     alive = bool(currently_alive);
-    // } else {
-    //     alive = false;
-    // }
-    let color = vec4<f32>(c, c, c, 1.0);
-    // let color = vec4<f32>(f32(alive));
-
-    textureStore(output, location, color);
 }
+
+@compute @workgroup_size(8, 8, 1)
+fn build_ir(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
+    let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
+
+    if location.y < -location.x + 500 {
+    } else {
+
+    }
+}
+
