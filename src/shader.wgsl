@@ -85,14 +85,15 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 fn build_ir(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
 
-    if !location.x < 500 || !location.y < 500 {
+    if !(location.x < 500) || !(location.y < 500) {
         return;
     }
 
-    if location.y < -location.x + 500 {
+    if location.x < 250 {
+    // left half
         
     } else {
-
+    // right half
+        
     }
 }
-
