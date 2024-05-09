@@ -5,7 +5,7 @@ use bevy::{
         render_asset::{RenderAssetUsages, RenderAssets},
         render_graph::{self, RenderGraph, RenderLabel},
         render_resource::{
-            binding_types::{storage_buffer, storage_buffer_sized, texture_storage_2d},
+            binding_types::{storage_buffer, texture_storage_2d},
             *,
         },
         renderer::{RenderContext, RenderDevice},
@@ -32,8 +32,6 @@ fn main() {
                             (MAIN_SIZE.1 * DISPLAY_FACTOR) as f32,
                         )
                             .into(),
-                        // uncomment for unthrottled FPS
-                        // present_mode: bevy::window::PresentMode::AutoNoVsync,
                         ..default()
                     }),
                     ..default()
