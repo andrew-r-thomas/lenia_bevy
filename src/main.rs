@@ -1,15 +1,13 @@
-//! A compute shader that simulates Conway's Game of Life.
-//!
-//! Compute shaders use the GPU for computing arbitrary information, that may be independent of what
-//! is rendered to the screen.
-
 use bevy::{
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_asset::{RenderAssetUsages, RenderAssets},
         render_graph::{self, RenderGraph, RenderLabel},
-        render_resource::{binding_types::texture_storage_2d, *},
+        render_resource::{
+            binding_types::{storage_buffer, storage_buffer_sized, texture_storage_2d},
+            *,
+        },
         renderer::{RenderContext, RenderDevice},
         texture::GpuImage,
         Render, RenderApp, RenderSet,
@@ -17,20 +15,21 @@ use bevy::{
 };
 use std::borrow::Cow;
 
+// TODO figure out blocky schtuff
 const DISPLAY_FACTOR: u32 = 1;
-const SIZE: (u32, u32) = (1280 / DISPLAY_FACTOR, 720 / DISPLAY_FACTOR);
+const MAIN_SIZE: (u32, u32) = (1280, 720);
 const WORKGROUP_SIZE: u32 = 8;
+const GAME_SIZE: u32 = 512;
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::BLACK))
         .add_plugins((
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         resolution: (
-                            (SIZE.0 * DISPLAY_FACTOR) as f32,
-                            (SIZE.1 * DISPLAY_FACTOR) as f32,
+                            (MAIN_SIZE.0 * DISPLAY_FACTOR) as f32,
+                            (MAIN_SIZE.1 * DISPLAY_FACTOR) as f32,
                         )
                             .into(),
                         // uncomment for unthrottled FPS
@@ -50,12 +49,12 @@ fn main() {
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let mut image = Image::new_fill(
         Extent3d {
-            width: SIZE.0,
-            height: SIZE.1,
+            width: GAME_SIZE,
+            height: GAME_SIZE,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        &[0, 0, 0, 255],
+        &[0, 0, 0, 200],
         TextureFormat::R32Float,
         RenderAssetUsages::RENDER_WORLD,
     );
@@ -66,28 +65,28 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     commands.spawn(SpriteBundle {
         sprite: Sprite {
-            custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
+            custom_size: Some(Vec2::new(GAME_SIZE as f32, GAME_SIZE as f32)),
             ..default()
         },
         texture: image0.clone(),
-        transform: Transform::from_scale(Vec3::splat(DISPLAY_FACTOR as f32)),
+        // transform: Transform::from_scale(Vec3::splat(DISPLAY_FACTOR as f32)),
         ..default()
     });
     commands.spawn(Camera2dBundle::default());
 
     commands.insert_resource(GameOfLifeImages {
-        texture_a: image0,
-        texture_b: image1,
+        game_a: image0,
+        game_b: image1,
     });
 }
 
 // Switch texture to display every frame to show the one that was written to most recently.
 fn switch_textures(images: Res<GameOfLifeImages>, mut displayed: Query<&mut Handle<Image>>) {
     let mut displayed = displayed.single_mut();
-    if *displayed == images.texture_a {
-        *displayed = images.texture_b.clone_weak();
+    if *displayed == images.game_a {
+        *displayed = images.game_b.clone_weak();
     } else {
-        *displayed = images.texture_a.clone_weak();
+        *displayed = images.game_a.clone_weak();
     }
 }
 
@@ -120,8 +119,8 @@ impl Plugin for GameOfLifeComputePlugin {
 
 #[derive(Resource, Clone, ExtractResource)]
 struct GameOfLifeImages {
-    texture_a: Handle<Image>,
-    texture_b: Handle<Image>,
+    game_a: Handle<Image>,
+    game_b: Handle<Image>,
 }
 
 #[derive(Resource)]
@@ -134,8 +133,8 @@ fn prepare_bind_group(
     game_of_life_images: Res<GameOfLifeImages>,
     render_device: Res<RenderDevice>,
 ) {
-    let view_a = gpu_images.get(&game_of_life_images.texture_a).unwrap();
-    let view_b = gpu_images.get(&game_of_life_images.texture_b).unwrap();
+    let view_a = gpu_images.get(&game_of_life_images.game_a).unwrap();
+    let view_b = gpu_images.get(&game_of_life_images.game_b).unwrap();
     let bind_group_0 = render_device.create_bind_group(
         None,
         &pipeline.texture_bind_group_layout,
@@ -166,6 +165,8 @@ impl FromWorld for GameOfLifePipeline {
                 (
                     texture_storage_2d(TextureFormat::R32Float, StorageTextureAccess::ReadOnly),
                     texture_storage_2d(TextureFormat::R32Float, StorageTextureAccess::WriteOnly),
+                    storage_buffer::<f32>(false),
+                    storage_buffer::<f32>(false),
                 ),
             ),
         );
@@ -268,7 +269,7 @@ impl render_graph::Node for GameOfLifeNode {
                     .unwrap();
                 pass.set_bind_group(0, &bind_groups[0], &[]);
                 pass.set_pipeline(init_pipeline);
-                pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
+                pass.dispatch_workgroups(GAME_SIZE / WORKGROUP_SIZE, GAME_SIZE / WORKGROUP_SIZE, 1);
             }
             GameOfLifeState::Update(index) => {
                 let update_pipeline = pipeline_cache
@@ -276,7 +277,7 @@ impl render_graph::Node for GameOfLifeNode {
                     .unwrap();
                 pass.set_bind_group(0, &bind_groups[index], &[]);
                 pass.set_pipeline(update_pipeline);
-                pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
+                pass.dispatch_workgroups(GAME_SIZE / WORKGROUP_SIZE, GAME_SIZE / WORKGROUP_SIZE, 1);
             }
         }
 
